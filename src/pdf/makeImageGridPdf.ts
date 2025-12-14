@@ -72,11 +72,6 @@ function computePlacement(
   return { drawW, drawH, xOffset, yOffset };
 }
 
-async function readFileAsUint8Array(file: File): Promise<Uint8Array> {
-  const buf = await file.arrayBuffer();
-  return new Uint8Array(buf);
-}
-
 export async function makeImageGridPdf(
   files: File[],
   opts: PdfGridOptions

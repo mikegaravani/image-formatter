@@ -18,7 +18,6 @@ import {
   ImageIcon,
   DownloadIcon,
   SettingsIcon,
-  FileTextIcon,
   HeartIcon,
   XIcon,
 } from "lucide-react";
