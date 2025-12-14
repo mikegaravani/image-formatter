@@ -18,10 +18,10 @@ export default function App() {
   const [opts, setOpts] = useState<PdfGridOptions>({
     pageFormat: "A4",
     orientation: "portrait",
-    cols: 2,
-    rows: 4,
-    gapPt: 12, // 12pt ~ 4.2mm
-    marginPt: 36, // 36pt ~ 12.7mm
+    boxWidthCm: 8,
+    boxHeightCm: 8,
+    gapCm: 0.5,
+    marginCm: 1.5,
     fitMode: "contain",
   });
 
@@ -118,30 +118,26 @@ export default function App() {
         </label>
 
         <label>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>Columns</div>
+          <div>Photo width (cm)</div>
           <input
             type="number"
-            min={1}
-            max={6}
-            value={opts.cols}
+            step={0.1}
+            value={opts.boxWidthCm}
             onChange={(e) =>
-              setOpts((o) => ({ ...o, cols: Number(e.target.value) }))
+              setOpts((o) => ({ ...o, boxWidthCm: Number(e.target.value) }))
             }
-            style={{ width: 70 }}
           />
         </label>
 
         <label>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>Rows</div>
+          <div>Photo height (cm)</div>
           <input
             type="number"
-            min={1}
-            max={10}
-            value={opts.rows}
+            step={0.1}
+            value={opts.boxHeightCm}
             onChange={(e) =>
-              setOpts((o) => ({ ...o, rows: Number(e.target.value) }))
+              setOpts((o) => ({ ...o, boxHeightCm: Number(e.target.value) }))
             }
-            style={{ width: 70 }}
           />
         </label>
 

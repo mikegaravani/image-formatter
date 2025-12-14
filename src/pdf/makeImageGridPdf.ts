@@ -1,16 +1,28 @@
-import { PDFDocument, PageSizes } from "pdf-lib";
+import { PDFDocument, PageSizes, rgb } from "pdf-lib";
 
 export type PageFormat = "A4" | "LETTER";
 export type Orientation = "portrait" | "landscape";
 export type FitMode = "contain" | "cover";
 
+const CM_TO_PT = 72 / 2.54;
+
+function cmToPt(cm: number): number {
+  return cm * CM_TO_PT;
+}
+
+const BORDER_PT = 1;
+const BORDER_INSET_PT = BORDER_PT;
+
 export type PdfGridOptions = {
   pageFormat: PageFormat;
   orientation: Orientation;
-  cols: number; // images per row
-  rows: number; // images per column
-  gapPt: number; // spacing between images (PDF points)
-  marginPt: number; // page margin (PDF points)
+
+  boxWidthCm: number;
+  boxHeightCm: number;
+
+  gapCm: number;
+  marginCm: number;
+
   fitMode: FitMode;
 };
 
@@ -73,14 +85,22 @@ export async function makeImageGridPdf(
 
   const [pageW, pageH] = getPageSize(opts.pageFormat, opts.orientation);
 
-  // Grid geometry
-  const usableW = pageW - 2 * opts.marginPt;
-  const usableH = pageH - 2 * opts.marginPt;
+  const marginPt = cmToPt(opts.marginCm);
+  const gapPt = cmToPt(opts.gapCm);
+  const boxW = cmToPt(opts.boxWidthCm);
+  const boxH = cmToPt(opts.boxHeightCm);
 
-  const boxW = (usableW - (opts.cols - 1) * opts.gapPt) / opts.cols;
-  const boxH = (usableH - (opts.rows - 1) * opts.gapPt) / opts.rows;
+  const usableW = pageW - marginPt * 2;
+  const usableH = pageH - marginPt * 2;
 
-  const perPage = opts.cols * opts.rows;
+  const cols = Math.floor((usableW + gapPt) / (boxW + gapPt));
+  const rows = Math.floor((usableH + gapPt) / (boxH + gapPt));
+
+  if (cols < 1 || rows < 1) {
+    throw new Error("Box size too large for page");
+  }
+
+  const perPage = cols * rows;
 
   for (let i = 0; i < files.length; i += perPage) {
     const page = pdfDoc.addPage([pageW, pageH]);
@@ -89,7 +109,7 @@ export async function makeImageGridPdf(
 
     for (let j = 0; j < slice.length; j++) {
       const file = slice[j];
-      const bytes = await readFileAsUint8Array(file);
+      const bytes = await file.arrayBuffer();
 
       const lowerName = file.name.toLowerCase();
       const isPng = lowerName.endsWith(".png");
@@ -97,24 +117,26 @@ export async function makeImageGridPdf(
 
       if (!isPng && !isJpg) continue; // skip unsupported
 
-      const embedded = isPng
+      const embedded = file.name.toLowerCase().endsWith(".png")
         ? await pdfDoc.embedPng(bytes)
         : await pdfDoc.embedJpg(bytes);
 
-      const cellCol = j % opts.cols;
-      const cellRow = Math.floor(j / opts.cols);
+      const col = j % cols;
+      const row = Math.floor(j / cols);
 
-      // PDF origin is bottom-left, so we place from top-left by converting y.
-      const x = opts.marginPt + cellCol * (boxW + opts.gapPt);
-      const yTop = pageH - opts.marginPt - cellRow * (boxH + opts.gapPt);
+      const x = marginPt + col * (boxW + gapPt);
+      const yTop = pageH - marginPt - row * (boxH + gapPt);
       const y = yTop - boxH;
+
+      const innerW = boxW - 2 * BORDER_INSET_PT;
+      const innerH = boxH - 2 * BORDER_INSET_PT;
 
       const { width: imgW, height: imgH } = embedded.scale(1);
       const { drawW, drawH, xOffset, yOffset } = computePlacement(
         imgW,
         imgH,
-        boxW,
-        boxH,
+        innerW,
+        innerH,
         opts.fitMode
       );
 
@@ -123,15 +145,23 @@ export async function makeImageGridPdf(
       // but it's a bit verbose. A simpler approach: draw anyway and accept minor overspill.
       // If you want exact clipping, tell me and I’ll add it.
 
+      // Draw image inside the inset box
       page.drawImage(embedded, {
-        x: x + xOffset,
-        y: y + yOffset,
+        x: x + BORDER_INSET_PT + xOffset,
+        y: y + BORDER_INSET_PT + yOffset,
         width: drawW,
         height: drawH,
       });
 
-      // Optional: draw a light border around each slot (comment out if not wanted)
-      // page.drawRectangle({ x, y, width: boxW, height: boxH, borderWidth: 0.5 });
+      // Draw container border on top
+      page.drawRectangle({
+        x,
+        y,
+        width: boxW,
+        height: boxH,
+        borderWidth: BORDER_PT,
+        borderColor: rgb(0, 0, 0),
+      });
     }
   }
 
