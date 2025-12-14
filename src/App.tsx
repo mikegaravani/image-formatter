@@ -19,6 +19,8 @@ import {
   DownloadIcon,
   SettingsIcon,
   FileTextIcon,
+  HeartIcon,
+  XIcon,
 } from "lucide-react";
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -56,10 +58,15 @@ export default function App() {
     return () => previews.forEach((p) => URL.revokeObjectURL(p.url));
   }, [previews]);
 
+  function removeAt(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const list = e.target.files ? Array.from(e.target.files) : [];
     const filtered = list.filter((f) => /\.(png|jpe?g)$/i.test(f.name));
-    setFiles(filtered);
+    // Append new selections instead of replacing existing files
+    setFiles((prev) => [...prev, ...filtered]);
   }
 
   async function onDownload() {
@@ -75,19 +82,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
+      <div className="pointer-events-none fixed left-3 top-3 z-50">
+        <div className="inline-flex items-center gap-2 rounded-full bg-background/90 px-3 py-1 text-xs font-medium text-foreground shadow-sm ring-1 ring-border/60">
+          <HeartIcon className="h-3.5 w-3.5 text-primary" />
+          <span className="lowercase">made with love by Mike G</span>
+        </div>
+      </div>
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-12 text-center">
-          <div className="mb-4 inline-flex items-center justify-center rounded-full bg-primary/10 p-3">
-            <FileTextIcon className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="mb-3 text-4xl font-bold tracking-tight text-foreground">
+          <h1 className="mb-4 text-balance bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-4xl font-extrabold tracking-tight text-transparent leading-[1.05] pb-1 sm:text-5xl">
             Image Grid PDF Generator
           </h1>
-          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            Upload PNG or JPG images and arrange them into a consistent grid
-            layout for printing. Configure your settings and export as a
-            professional PDF document.
+          <p className="mx-auto max-w-3xl text-balance text-lg leading-relaxed text-muted-foreground">
+            Upload PNG or JPG images, and export a PDF ready for printing.
           </p>
         </div>
 
@@ -103,21 +111,34 @@ export default function App() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {/* File Upload */}
             <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
-              <Label
-                htmlFor="file-upload"
-                className="mb-2 block text-sm font-medium text-foreground"
-              >
+              <Label className="mb-2 block text-sm font-medium text-foreground">
                 Upload Images
               </Label>
-              <div className="relative">
-                <Input
+
+              <div className="flex items-center gap-3">
+                {/* Real input is hidden */}
+                <input
                   id="file-upload"
                   type="file"
                   multiple
                   accept="image/png,image/jpeg"
                   onChange={onPick}
-                  className="h-auto py-2 cursor-pointer file:mr-4 file:cursor-pointer leading-normal file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                  className="sr-only"
                 />
+
+                {/* Your centered, styled trigger */}
+                <Button asChild className="h-10">
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    Browse…
+                  </label>
+                </Button>
+
+                {/* Optional: show selected count/name */}
+                <div className="text-sm text-muted-foreground">
+                  {files.length
+                    ? `${files.length} selected`
+                    : "No files chosen"}
+                </div>
               </div>
             </div>
 
@@ -241,7 +262,7 @@ export default function App() {
               onClick={onDownload}
               disabled={!files.length || busy}
               size="lg"
-              className="gap-2"
+              className="gap-2 bg-green-400 cursor-pointer hover:bg-green-500"
             >
               <DownloadIcon className="h-4 w-4" />
               {busy ? "Generating…" : "Download PDF"}
@@ -275,11 +296,19 @@ export default function App() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {previews.map((p) => (
+              {previews.map((p, idx) => (
                 <div
                   key={p.file.name + p.file.size}
                   className="group relative overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md"
                 >
+                  <button
+                    type="button"
+                    onClick={() => removeAt(idx)}
+                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition hover:text-foreground group-hover:opacity-100"
+                    aria-label="Remove image"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
                   <div className="aspect-square overflow-hidden bg-muted/30 p-3">
                     <img
                       src={p.url || "/placeholder.svg"}
